@@ -15,7 +15,7 @@ from commit_rider import __version__, cli
 from commit_rider.errors import AuthenticationError, GitHubError
 from commit_rider.rendering.exporter import ExportReport
 from commit_rider.rendering.themes import THEMES
-from tests.support import ROOT, demo
+from tests.support import ROOT
 
 SMALL = ["--width", "320", "--height", "96", "--fps", "6", "--duration", "2"]
 TOKEN = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
