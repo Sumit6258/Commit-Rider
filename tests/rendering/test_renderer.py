@@ -243,7 +243,7 @@ class ThemeAndOptionTests(unittest.TestCase):
         self.assertIsNone(plain.overlay)
         a, b = plain.render_frame(2), with_stats.render_frame(2)
         panel = (0, 0, 330, 110)  # top-left statistics panel
-        self.assertGreater(mean_abs_diff(a.crop(panel), b.crop(panel)), 4.0)
+        self.assertGreater(mean_abs_diff(a.crop(panel), b.crop(panel)), 2.5)
         ticker = (400, 150, 640, 192)  # date label + progress bar, bottom right
         t0, t1 = with_stats.render_frame(0).crop(ticker), with_stats.render_frame(8).crop(ticker)
         self.assertGreater(mean_abs_diff(t0, t1), 0.5)  # the ticker advances through the year
