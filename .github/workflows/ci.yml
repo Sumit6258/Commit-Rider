@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "ruff>=0.6"
+      - run: ruff check .
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e ".[dev]"
+      - name: Tests with coverage
+        run: python -m pytest --cov=commit_rider --cov-report=term-missing --cov-fail-under=85
+      - name: Core algorithms (terrain + animation) need 90% coverage
+        run: python -m coverage report --include="*/commit_rider/terrain/*,*/commit_rider/animation/*" --fail-under=90
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - run: python -m build
+      - name: Install the wheel into a clean environment and run it
+        run: |
+          python -m venv "$RUNNER_TEMP/clean"
+          "$RUNNER_TEMP/clean/bin/pip" install --quiet --constraint requirements.txt dist/*.whl
+          "$RUNNER_TEMP/clean/bin/commit-rider" --version
+          "$RUNNER_TEMP/clean/bin/commit-rider" --source demo --width 480 --height 144 --fps 10 --duration 3 \
+            --output "$RUNNER_TEMP/out/demo.gif"
+          test -s "$RUNNER_TEMP/out/demo.gif"
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run the action from this checkout (offline demo data)
+        id: ride
+        uses: ./
+        with:
+          source: demo
+          width: 480
+          height: 144
+          fps: 10
+          duration: 3
+          output: dist/action-smoke.gif
+      - name: Validate the generated GIF
+        env:
+          GIF_PATH: ${{ steps.ride.outputs.path }}
+          FRAMES: ${{ steps.ride.outputs.frames }}
+        run: |
+          "$RUNNER_TEMP/commit-rider-venv/bin/python" - <<'PY'
+          import os
+          from commit_rider.rendering.exporter import validate_gif
+          report = validate_gif(os.environ["GIF_PATH"], expected_size=(480, 144), expected_frames=int(os.environ["FRAMES"]))
+          print(f"OK: {report.frames} frames, {report.size_bytes} bytes, loop={report.loop}")
+          PY
+
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pip-audit
+      - name: Audit pinned runtime dependencies for known vulnerabilities
+        run: pip-audit --requirement requirements.txt

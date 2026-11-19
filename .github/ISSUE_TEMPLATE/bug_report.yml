@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work, or the animation looks wrong
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead? Attach the GIF or a screenshot if it is a visual problem.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: How do you run it?
+      options: ["GitHub Action", "Command line (commit-rider)", "Python API"]
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Settings used
+      description: The `with:` block of the workflow or the command line. Do not paste tokens.
+      render: yaml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: Run with `-vv` locally, or enable step debug logging in Actions. Tokens are redacted, but please check.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Commit Rider version
+      placeholder: "v1.0.0 or the output of commit-rider --version"

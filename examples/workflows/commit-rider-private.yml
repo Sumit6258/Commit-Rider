@@ -1,0 +1,27 @@
+# Same as commit-rider.yml, but also reports your private contribution count.
+# Needs a secret named COMMIT_RIDER_TOKEN: a classic personal access token with the
+# "read:user" scope (see docs/installation.md).
+name: Generate Commit Rider (with private count)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 0 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: Sumit6258/commit-rider@v1
+        with:
+          username: ${{ github.repository_owner }}
+          token: ${{ secrets.COMMIT_RIDER_TOKEN }}
+          include-private: true
+          show-stats: true
+          theme: neon
+          publish-branch: output

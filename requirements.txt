@@ -1,0 +1,3 @@
+# Exact dependency versions that the GitHub Action installs (via --constraint) and that CI
+# tests against. pyproject.toml declares the wider range supported for library installs.
+Pillow==13.0.0

@@ -1,0 +1,235 @@
+name: "Commit Rider"
+description: "Turn your GitHub contributions into an animated bicycle ride over contribution terrain (an optimised, looping GIF)."
+author: "Sumit6258"
+branding:
+  icon: "activity"
+  color: "purple"
+
+inputs:
+  username:
+    description: "GitHub username to ride. Defaults to the owner of the repository that runs the workflow."
+    required: false
+    default: ""
+  token:
+    description: >-
+      Token for the GitHub GraphQL API. The built-in GITHUB_TOKEN is enough for public contributions.
+      Pass a personal access token (classic, scope read:user) to also report your private contribution count.
+    required: false
+    default: ${{ github.token }}
+  source:
+    description: "Where the daily counts come from: 'github' (default) or 'demo' (offline synthetic data, for trying the action)."
+    required: false
+    default: "github"
+  days:
+    description: "How many of the most recent days to ride (7 to 1100)."
+    required: false
+    default: "365"
+  include-private:
+    description: "Also report GitHub's aggregate count of private contributions (needs a read:user token). It is never drawn per day."
+    required: false
+    default: "false"
+  output:
+    description: "Path of the generated GIF, relative to the workspace."
+    required: false
+    default: "dist/commit-rider.gif"
+  preview:
+    description: "Also write a PNG still next to the GIF ('true' or 'false')."
+    required: false
+    default: "true"
+  theme:
+    description: "midnight, forest, sunset, neon, snow, minimal or monochrome."
+    required: false
+    default: "midnight"
+  theme-file:
+    description: "Optional path to a JSON file that defines a custom theme (see docs/configuration.md)."
+    required: false
+    default: ""
+  bike:
+    description: "Bicycle style. Currently only 'bmx'."
+    required: false
+    default: "bmx"
+  width:
+    description: "Output width in pixels (320 to 2400)."
+    required: false
+    default: "1200"
+  height:
+    description: "Output height in pixels (96 to 900)."
+    required: false
+    default: "360"
+  fps:
+    description: "Frames per second (5 to 30)."
+    required: false
+    default: "18"
+  duration:
+    description: "Seconds for one full lap of the track (2 to 30)."
+    required: false
+    default: "8"
+  ride-mode:
+    description: "normal, speed, stunt or relaxed."
+    required: false
+    default: "normal"
+  terrain-mode:
+    description: "natural, rolling, ramps, mountain or arcade."
+    required: false
+    default: "natural"
+  speed:
+    description: "Ground speed multiplier (0.4 to 2.0)."
+    required: false
+    default: "1.0"
+  height-sensitivity:
+    description: "How tall the hills grow (0.3 to 2.0)."
+    required: false
+    default: "1.0"
+  smoothing:
+    description: "Terrain smoothing (0 to 1)."
+    required: false
+    default: "0.5"
+  stunt-intensity:
+    description: "Stunt eagerness from 0 to 1. Empty means: use the ride mode's default."
+    required: false
+    default: ""
+  scaling:
+    description: "How counts map to height: log, sqrt, linear or rank."
+    required: false
+    default: "log"
+  particles:
+    description: "Dust and spray ('true' or 'false')."
+    required: false
+    default: "true"
+  show-stats:
+    description: "Overlay total, range, best day, average and streak ('true' or 'false')."
+    required: false
+    default: "false"
+  quality:
+    description: "draft, standard or high."
+    required: false
+    default: "standard"
+  max-size-mb:
+    description: "Soft size limit for the GIF. Quality is reduced step by step to fit."
+    required: false
+    default: "8"
+  seed:
+    description: "Integer seed for decorative variation (the terrain itself is determined by your data)."
+    required: false
+    default: "0"
+  bike-color:
+    description: "Frame colour as hex, e.g. #ff3366. Empty keeps the theme's colour."
+    required: false
+    default: ""
+  rider-color:
+    description: "Jersey colour as hex. Empty keeps the theme's colour."
+    required: false
+    default: ""
+  terrain-color:
+    description: "Terrain colour as hex. Empty keeps the theme's colour."
+    required: false
+    default: ""
+  background-color:
+    description: "Sky colour as hex. Empty keeps the theme's colour."
+    required: false
+    default: ""
+  publish-branch:
+    description: >-
+      If set, commit the GIF (and PNG) to this branch, e.g. 'output'. The branch is created as an orphan branch
+      when it does not exist and only these files are added or updated; other files on the branch are kept.
+      Requires 'permissions: contents: write' and a prior actions/checkout step.
+    required: false
+    default: ""
+  publish-dir:
+    description: "Sub-directory of the publish branch to place the files in (default: the branch root)."
+    required: false
+    default: ""
+  publish-history:
+    description: >-
+      'squash' (default) keeps a single commit on the publish branch, replaced with --force-with-lease so a daily
+      multi-megabyte GIF does not grow the repository by gigabytes. 'keep' appends a normal commit each time.
+    required: false
+    default: "squash"
+  commit-message:
+    description: "Commit message used when publishing."
+    required: false
+    default: "Update Commit Rider animation"
+  python-version:
+    description: "Python version used to run the generator."
+    required: false
+    default: "3.12"
+
+outputs:
+  path:
+    description: "Path of the generated GIF."
+    value: ${{ steps.generate.outputs.path }}
+  preview-path:
+    description: "Path of the PNG preview (empty if disabled)."
+    value: ${{ steps.generate.outputs.preview-path }}
+  total-contributions:
+    description: "Total contributions in the ridden date range."
+    value: ${{ steps.generate.outputs.total-contributions }}
+  frames:
+    description: "Number of frames in the GIF."
+    value: ${{ steps.generate.outputs.frames }}
+  size-bytes:
+    description: "Size of the GIF in bytes."
+    value: ${{ steps.generate.outputs.size-bytes }}
+  published:
+    description: "'true' if a new commit was pushed to the publish branch, otherwise 'false'."
+    value: ${{ steps.generate.outputs.published }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Commit Rider
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        python -m venv "$RUNNER_TEMP/commit-rider-venv"
+        "$RUNNER_TEMP/commit-rider-venv/bin/python" -m pip install \
+          --disable-pip-version-check --no-input --quiet \
+          --constraint "$ACTION_PATH/requirements.txt" "$ACTION_PATH"
+
+    - name: Generate animation
+      id: generate
+      shell: bash
+      # Inputs reach the program as environment variables, never spliced into the script text.
+      env:
+        INPUT_USERNAME: ${{ inputs.username }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_SOURCE: ${{ inputs.source }}
+        INPUT_DAYS: ${{ inputs.days }}
+        INPUT_INCLUDE_PRIVATE: ${{ inputs.include-private }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_PREVIEW: ${{ inputs.preview }}
+        INPUT_THEME: ${{ inputs.theme }}
+        INPUT_THEME_FILE: ${{ inputs.theme-file }}
+        INPUT_BIKE: ${{ inputs.bike }}
+        INPUT_WIDTH: ${{ inputs.width }}
+        INPUT_HEIGHT: ${{ inputs.height }}
+        INPUT_FPS: ${{ inputs.fps }}
+        INPUT_DURATION: ${{ inputs.duration }}
+        INPUT_RIDE_MODE: ${{ inputs.ride-mode }}
+        INPUT_TERRAIN_MODE: ${{ inputs.terrain-mode }}
+        INPUT_SPEED: ${{ inputs.speed }}
+        INPUT_HEIGHT_SENSITIVITY: ${{ inputs.height-sensitivity }}
+        INPUT_SMOOTHING: ${{ inputs.smoothing }}
+        INPUT_STUNT_INTENSITY: ${{ inputs.stunt-intensity }}
+        INPUT_SCALING: ${{ inputs.scaling }}
+        INPUT_PARTICLES: ${{ inputs.particles }}
+        INPUT_SHOW_STATS: ${{ inputs.show-stats }}
+        INPUT_QUALITY: ${{ inputs.quality }}
+        INPUT_MAX_SIZE_MB: ${{ inputs.max-size-mb }}
+        INPUT_SEED: ${{ inputs.seed }}
+        INPUT_BIKE_COLOR: ${{ inputs.bike-color }}
+        INPUT_RIDER_COLOR: ${{ inputs.rider-color }}
+        INPUT_TERRAIN_COLOR: ${{ inputs.terrain-color }}
+        INPUT_BACKGROUND_COLOR: ${{ inputs.background-color }}
+        INPUT_PUBLISH_BRANCH: ${{ inputs.publish-branch }}
+        INPUT_PUBLISH_DIR: ${{ inputs.publish-dir }}
+        INPUT_PUBLISH_HISTORY: ${{ inputs.publish-history }}
+        INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+      run: '"$RUNNER_TEMP/commit-rider-venv/bin/python" -m commit_rider.action'
